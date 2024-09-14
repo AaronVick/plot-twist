@@ -25,9 +25,10 @@ export default async function handler(req, res) {
 
     const plot = movieData.data.Plot;
     const correctTitle = movieData.data.Title;
+    const genre = movieData.data.Genre;
 
     // Fetch decoy titles based on genre
-    let decoyResponse = await axios.get(`http://www.omdbapi.com/?apikey=99396e0b&s=${movieData.data.Genre}`);
+    let decoyResponse = await axios.get(`http://www.omdbapi.com/?apikey=99396e0b&s=${encodeURIComponent(genre)}`);
     
     // Check if the decoy response contains data
     if (!decoyResponse.data.Search || decoyResponse.data.Search.length < 2) {
@@ -52,8 +53,8 @@ export default async function handler(req, res) {
     const titles = [correctTitle, ...decoyTitles].sort(() => Math.random() - 0.5);
     console.log('Final movie titles presented:', titles);
 
-    // Store the correct answer and options
-    process.env.correctAnswer = correctTitle;
+    // Store the correct answer and options in environment variables
+    process.env.answer_Value = correctTitle;
     process.env.options = JSON.stringify(titles);
 
     const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(plot)}&color=lightblue`;

@@ -9,10 +9,13 @@ export default async function handler(req, res) {
 
     // Retrieve the selected answer button index from the request body
     const { buttonIndex } = req.body;
+    if (!buttonIndex) {
+      return res.status(400).json({ error: 'Button index is missing' });
+    }
     console.log('User selected answer:', buttonIndex);
 
     // Retrieve the correct answer and options from environment variables
-    const correctAnswer = process.env.answer_Value;  // Now using `answer_Value` for correctAnswer
+    const correctAnswer = process.env.answer_Value;  // Using answer_Value for the correct answer
     const options = process.env.options ? JSON.parse(process.env.options) : [];
 
     console.log('Correct answer from environment:', correctAnswer);
@@ -22,7 +25,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'No answer data available' });
     }
 
-    // Check if the selected answer is correct
+    // Check if the selected answer is correct (ignoring case and trimming whitespace)
     const isCorrect = options[buttonIndex - 1].trim().toLowerCase() === correctAnswer.trim().toLowerCase();
     console.log('Is the user correct?', isCorrect);
 
