@@ -7,7 +7,7 @@ export const config = {
 export default function handler(req) {
   const { searchParams } = new URL(req.url);
   const text = searchParams.get('text');
-  const color = searchParams.get('color') || 'lightblue';  // Default to light blue
+  const color = searchParams.get('color') || 'lightblue';  // Softer background
 
   console.log('Generating OG image with text:', text, 'and background color:', color);
 
@@ -16,7 +16,7 @@ export default function handler(req) {
       <div
         style={{
           backgroundColor: color,
-          color: '#fff',
+          color: '#000',  // Change text color to black
           fontSize: 50,
           height: '100%',
           display: 'flex',
