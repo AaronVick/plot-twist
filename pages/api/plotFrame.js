@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const omdbApiUrl = `http://www.omdbapi.com/?apikey=99396e0b&s=movie`; // Search for general movies
+const omdbApiUrl = `http://www.omdbapi.com/?apikey=99396e0b&s=movie`; // General search for movies
 
 export default async function handler(req, res) {
   try {
@@ -28,6 +28,16 @@ export default async function handler(req, res) {
 
     // Fetch decoy titles based on genre
     let decoyResponse = await axios.get(`http://www.omdbapi.com/?apikey=99396e0b&s=${movieData.data.Genre}`);
+    
+    // Check if the decoy response contains data
+    if (!decoyResponse.data.Search || decoyResponse.data.Search.length < 2) {
+      console.warn('Not enough decoy movies found. Using default decoys.');
+      decoyResponse = { data: { Search: [
+        { Title: 'The Matrix' },
+        { Title: 'Inception' }
+      ] }};
+    }
+
     const decoyTitles = decoyResponse.data.Search
       .filter(movie => movie.Title !== correctTitle)
       .slice(0, 1)  // Select only one decoy title
