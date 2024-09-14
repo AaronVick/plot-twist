@@ -21,8 +21,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'No answer data available' });
     }
 
-    // Check if the selected answer is correct
-    const isCorrect = options[buttonIndex - 1] === correctAnswer;
+    // Check if the selected answer is correct (ignoring case and trimming whitespace)
+    const isCorrect = options[buttonIndex - 1].trim().toLowerCase() === correctAnswer.trim().toLowerCase();
     console.log('Is the user correct?', isCorrect);
 
     // Update the environment variables for wins and losses
