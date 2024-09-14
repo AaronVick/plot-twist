@@ -7,15 +7,15 @@ export const config = {
 export default function handler(req) {
   const { searchParams } = new URL(req.url);
   const text = searchParams.get('text');
-  console.log('Generating OG image with text:', text);
+  const color = searchParams.get('color') || 'lightblue';  // Default to light blue
 
-  const backgroundColor = text.includes("Correct") ? "#4caf50" : "#f44336";
+  console.log('Generating OG image with text:', text, 'and background color:', color);
 
   return new ImageResponse(
     (
       <div
         style={{
-          backgroundColor,
+          backgroundColor: color,
           color: '#fff',
           fontSize: 50,
           height: '100%',

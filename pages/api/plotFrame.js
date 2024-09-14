@@ -37,9 +37,8 @@ export default async function handler(req, res) {
         console.warn('Fallback to genre only failed. Using default decoys.');
         // Final fallback: Use a pre-defined set of random movie titles if all else fails
         decoyResponse = { data: { Search: [
-          { Title: 'Random Movie 1' },
-          { Title: 'Random Movie 2' },
-          { Title: 'Random Movie 3' }
+          { Title: 'The Matrix' },
+          { Title: 'Inception' }
         ] }};
       }
     }
@@ -48,10 +47,10 @@ export default async function handler(req, res) {
 
     const decoyTitles = decoyResponse.data.Search
       .filter(movie => movie.Title !== correctTitle)
-      .slice(0, 2)
+      .slice(0, 1)  // Select one decoy title
       .map(movie => movie.Title);
 
-    if (decoyTitles.length < 2) {
+    if (decoyTitles.length < 1) {
       console.error('Error: Not enough decoy titles.');
       return res.status(500).json({ error: 'Not enough decoy titles' });
     }
@@ -60,7 +59,7 @@ export default async function handler(req, res) {
     const titles = [correctTitle, ...decoyTitles].sort(() => Math.random() - 0.5);
     console.log('Final movie titles presented:', titles);
 
-    const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(plot)}`;
+    const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(plot)}&color=lightblue`;
 
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(`
@@ -70,7 +69,6 @@ export default async function handler(req, res) {
           <meta property="fc:frame:image" content="${ogImageUrl}" />
           <meta property="fc:frame:button:1" content="${titles[0]}" />
           <meta property="fc:frame:button:2" content="${titles[1]}" />
-          <meta property="fc:frame:button:3" content="${titles[2]}" />
           <meta property="fc:frame:post_url" content="${process.env.NEXT_PUBLIC_BASE_URL}/api/answer" />
         </head>
       </html>
