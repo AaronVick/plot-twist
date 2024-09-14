@@ -10,10 +10,10 @@ export default async function handler(req, res) {
     const { buttonIndex } = req.body;
     console.log('User selected answer:', buttonIndex);
 
-    // Load the correct answer and options from environment variables
+    // Retrieve the correct answer and options from environment variables
     const correctAnswer = process.env.correctAnswer;
     const options = process.env.options ? JSON.parse(process.env.options) : [];
-    
+
     console.log('Correct answer:', correctAnswer);
     console.log('Options presented:', options);
 
