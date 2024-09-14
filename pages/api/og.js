@@ -7,6 +7,8 @@ export const config = {
 export default function handler(req) {
   const { searchParams } = new URL(req.url);
   const text = searchParams.get('text');
+  console.log('Generating OG image with text:', text);
+
   const backgroundColor = text.includes("Correct") ? "#4caf50" : "#f44336";
 
   return new ImageResponse(
