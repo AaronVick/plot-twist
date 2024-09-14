@@ -1,0 +1,28 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "package.json",
+        "use": "@vercel/next"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/api/plotFrame",
+        "dest": "/api/plotFrame"
+      },
+      {
+        "src": "/api/og",
+        "dest": "/api/og"
+      },
+      {
+        "src": "/api/answer",
+        "dest": "/api/answer"
+      },
+      {
+        "src": "/(.*)",
+        "dest": "/$1"
+      }
+    ]
+  }
+  
