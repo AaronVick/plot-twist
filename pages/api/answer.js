@@ -7,21 +7,22 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
+    // Retrieve the selected answer button index from the request body
     const { buttonIndex } = req.body;
     console.log('User selected answer:', buttonIndex);
 
     // Retrieve the correct answer and options from environment variables
-    const correctAnswer = process.env.correctAnswer;
+    const correctAnswer = process.env.answer_Value;  // Now using `answer_Value` for correctAnswer
     const options = process.env.options ? JSON.parse(process.env.options) : [];
 
-    console.log('Correct answer:', correctAnswer);
+    console.log('Correct answer from environment:', correctAnswer);
     console.log('Options presented:', options);
 
     if (!correctAnswer || options.length === 0) {
       return res.status(500).json({ error: 'No answer data available' });
     }
 
-    // Check if the selected answer is correct (ignoring case and trimming whitespace)
+    // Check if the selected answer is correct
     const isCorrect = options[buttonIndex - 1].trim().toLowerCase() === correctAnswer.trim().toLowerCase();
     console.log('Is the user correct?', isCorrect);
 
