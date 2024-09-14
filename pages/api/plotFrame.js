@@ -19,22 +19,37 @@ export default async function handler(req, res) {
     const plot = movieData.data.Plot;
     const correctTitle = movieData.data.Title;
 
-    // Fetch decoy titles
-    console.log('Fetching decoy titles based on genre and year...');
-    const decoyResponse = await axios.get(`http://www.omdbapi.com/?apikey=99396e0b&s=${movieData.data.Genre}&y=${movieData.data.Year}`);
-    console.log('Decoy titles response:', decoyResponse.data);
+    // Fetch decoy titles based on genre and year
+    let decoyResponse;
+    try {
+      console.log('Fetching decoy titles based on genre and year...');
+      decoyResponse = await axios.get(`http://www.omdbapi.com/?apikey=99396e0b&s=${movieData.data.Genre}&y=${movieData.data.Year}`);
+      
+      if (!decoyResponse || !decoyResponse.data || decoyResponse.data.Response === 'False') {
+        throw new Error('No decoy data found with genre and year.');
+      }
+    } catch (error) {
+      console.warn('Genre and year search failed. Falling back to genre only.');
+      // Fallback: Search by genre only if year + genre fails
+      decoyResponse = await axios.get(`http://www.omdbapi.com/?apikey=99396e0b&s=${movieData.data.Genre}`);
 
-    if (!decoyResponse || !decoyResponse.data || !decoyResponse.data.Search) {
-      console.error('Error: No decoy data received.');
-      return res.status(500).json({ error: 'No decoy data received' });
+      if (!decoyResponse || !decoyResponse.data || decoyResponse.data.Response === 'False') {
+        console.warn('Fallback to genre only failed. Using default decoys.');
+        // Final fallback: Use a pre-defined set of random movie titles if all else fails
+        decoyResponse = { data: { Search: [
+          { Title: 'Random Movie 1' },
+          { Title: 'Random Movie 2' },
+          { Title: 'Random Movie 3' }
+        ] }};
+      }
     }
+
+    console.log('Decoy titles response:', decoyResponse.data);
 
     const decoyTitles = decoyResponse.data.Search
       .filter(movie => movie.Title !== correctTitle)
       .slice(0, 2)
       .map(movie => movie.Title);
-
-    console.log('Selected decoy titles:', decoyTitles);
 
     if (decoyTitles.length < 2) {
       console.error('Error: Not enough decoy titles.');
