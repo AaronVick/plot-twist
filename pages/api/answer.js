@@ -10,6 +10,7 @@ export default async function handler(req, res) {
     // Retrieve the selected answer button index from the request body
     const { buttonIndex } = req.body;
     if (!buttonIndex) {
+      console.error('Missing buttonIndex in the request body');
       return res.status(400).json({ error: 'Button index is missing' });
     }
     console.log('User selected answer:', buttonIndex);

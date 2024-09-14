@@ -25,7 +25,7 @@ export default async function handler(req, res) {
 
     const plot = movieData.data.Plot;
     const correctTitle = movieData.data.Title;
-    const genre = movieData.data.Genre;
+    const genre = movieData.data.Genre.split(",")[0];  // Use the first genre category
 
     // Fetch decoy titles based on genre
     let decoyResponse = await axios.get(`http://www.omdbapi.com/?apikey=99396e0b&s=${encodeURIComponent(genre)}`);
