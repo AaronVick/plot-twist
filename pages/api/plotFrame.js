@@ -47,16 +47,13 @@ export default async function handler(req, res) {
 
     const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(plot)}`;
 
-    // Encode game state (including correctAnswer and options)
+    // Create the game state
     const newGameState = {
       correctAnswer: correctTitle,
       options: titles,
     };
 
-    // Update the environment variable for the correct answer (answer_Value)
-    process.env.answer_Value = titles.indexOf(correctTitle) + 1; // Store the correct button index (1 or 2)
-
-    // Send the frame
+    // Send the frame, ensuring game state is encoded
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(`
       <html>
