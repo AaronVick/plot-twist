@@ -1,12 +1,18 @@
 import axios from 'axios';
 
-const omdbApiUrl = `http://www.omdbapi.com/?apikey=99396e0b&s=movie`; // General search for movies
+const omdbApiUrl = `http://www.omdbapi.com/?apikey=99396e0b&s=movie`;
 
 export default async function handler(req, res) {
   try {
     console.log('Starting plotFrame handler...');
 
-    // Fetch a random list of movies based on a general search
+    // Retrieve game state from the request
+    const { untrustedData, trustedData } = req.body;
+    const gameState = JSON.parse(trustedData?.stateData || '{}');
+    const { gameWins = 0, gameLoss = 0, gameTally = 0 } = gameState;
+
+    console.log('Current game state:', { gameWins, gameLoss, gameTally });
+
     const searchResponse = await axios.get(omdbApiUrl);
     const movieList = searchResponse.data.Search;
 
@@ -15,22 +21,18 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'No movies found' });
     }
 
-    // Select a random movie from the list
     const randomMovie = movieList[Math.floor(Math.random() * movieList.length)];
     console.log('Random movie selected:', randomMovie);
 
-    // Fetch full details for the random movie
     const movieData = await axios.get(`http://www.omdbapi.com/?apikey=99396e0b&i=${randomMovie.imdbID}`);
     console.log('Movie data received:', movieData.data);
 
     const plot = movieData.data.Plot;
     const correctTitle = movieData.data.Title;
-    const genre = movieData.data.Genre.split(",")[0];  // Use the first genre category
+    const genre = movieData.data.Genre.split(",")[0];
 
-    // Fetch decoy titles based on genre
     let decoyResponse = await axios.get(`http://www.omdbapi.com/?apikey=99396e0b&s=${encodeURIComponent(genre)}`);
     
-    // Check if the decoy response contains data
     if (!decoyResponse.data.Search || decoyResponse.data.Search.length < 2) {
       console.warn('Not enough decoy movies found. Using default decoys.');
       decoyResponse = { data: { Search: [
@@ -41,7 +43,7 @@ export default async function handler(req, res) {
 
     const decoyTitles = decoyResponse.data.Search
       .filter(movie => movie.Title !== correctTitle)
-      .slice(0, 1)  // Select only one decoy title
+      .slice(0, 1)
       .map(movie => movie.Title);
 
     if (decoyTitles.length < 1) {
@@ -49,15 +51,18 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Not enough decoy titles' });
     }
 
-    // Randomize the titles
     const titles = [correctTitle, ...decoyTitles].sort(() => Math.random() - 0.5);
     console.log('Final movie titles presented:', titles);
 
-    // Store the correct answer and options in environment variables
-    process.env.answer_Value = correctTitle;
-    process.env.options = JSON.stringify(titles);
+    const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(plot)}`;
 
-    const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(plot)}&color=lightblue`;
+    const newGameState = {
+      correctAnswer: correctTitle,
+      options: titles,
+      gameWins,
+      gameLoss,
+      gameTally
+    };
 
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(`
@@ -70,6 +75,7 @@ export default async function handler(req, res) {
           <meta property="fc:frame:button:2" content="${titles[1]}" />
           <meta property="fc:frame:button:2:action" content="post" />
           <meta property="fc:frame:post_url" content="${process.env.NEXT_PUBLIC_BASE_URL}/api/answer" />
+          <meta property="fc:frame:state" content="${encodeURIComponent(JSON.stringify(newGameState))}" />
         </head>
       </html>
     `);
