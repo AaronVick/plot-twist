@@ -6,7 +6,7 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    // Retrieve the selected button index and game state
+    // Retrieve the selected button index and game state from the request body
     const { untrustedData, trustedData } = req.body;
     const buttonIndex = untrustedData?.buttonIndex;
 
@@ -16,16 +16,22 @@ export default async function handler(req, res) {
     }
     console.log('User selected answer:', buttonIndex);
 
+    // Check if trustedData contains the expected state
+    console.log('Received trustedData:', trustedData);
+    
     // Retrieve the game state passed from the plotFrame
     const gameState = JSON.parse(trustedData?.stateData || '{}');
+    console.log('Parsed gameState:', gameState);
+    
     const { correctAnswer, options } = gameState;
+
+    if (!correctAnswer || !options || options.length === 0) {
+      console.error('Invalid game state:', { correctAnswer, options });
+      return res.status(400).json({ error: 'Invalid game state' });
+    }
 
     console.log('Correct answer from gameState:', correctAnswer);
     console.log('Options presented:', options);
-
-    if (!correctAnswer || !options || options.length === 0) {
-      return res.status(400).json({ error: 'Invalid game state' });
-    }
 
     // Check if the selected answer is correct
     const isCorrect = options[buttonIndex - 1].trim().toLowerCase() === correctAnswer.trim().toLowerCase();
