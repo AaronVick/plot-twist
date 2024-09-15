@@ -66,9 +66,9 @@ export default async function handler(req, res) {
           <meta property="fc:frame" content="vNext" />
           <meta property="fc:frame:image" content="${ogImageUrl}" />
           <meta property="fc:frame:button:1" content="${titles[0]}" />
-          <meta property="fc:frame:button:1:post_body" content="buttonIndex=1" /> 
+          <meta property="fc:frame:button:1:action" content="post" />
           <meta property="fc:frame:button:2" content="${titles[1]}" />
-          <meta property="fc:frame:button:2:post_body" content="buttonIndex=2" />
+          <meta property="fc:frame:button:2:action" content="post" />
           <meta property="fc:frame:post_url" content="${process.env.NEXT_PUBLIC_BASE_URL}/api/answer" />
         </head>
       </html>

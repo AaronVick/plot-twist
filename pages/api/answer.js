@@ -8,7 +8,9 @@ export default async function handler(req, res) {
     }
 
     // Retrieve the selected answer button index from the request body
-    const { buttonIndex } = req.body;
+    const { untrustedData } = req.body;
+    const buttonIndex = untrustedData?.buttonIndex;
+    
     if (!buttonIndex) {
       console.error('Missing buttonIndex in the request body');
       return res.status(400).json({ error: 'Button index is missing' });
@@ -16,7 +18,7 @@ export default async function handler(req, res) {
     console.log('User selected answer:', buttonIndex);
 
     // Retrieve the correct answer and options from environment variables
-    const correctAnswer = process.env.answer_Value;  // Using answer_Value for the correct answer
+    const correctAnswer = process.env.answer_Value;
     const options = process.env.options ? JSON.parse(process.env.options) : [];
 
     console.log('Correct answer from environment:', correctAnswer);
