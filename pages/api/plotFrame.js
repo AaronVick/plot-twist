@@ -53,6 +53,9 @@ export default async function handler(req, res) {
       options: titles,
     };
 
+    // Update the environment variable for the correct answer (answer_Value)
+    process.env.answer_Value = titles.indexOf(correctTitle) + 1; // Store the correct button index (1 or 2)
+
     // Send the frame
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(`

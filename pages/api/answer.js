@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     }
 
     // Retrieve the selected button index and game state from the request body
-    const { untrustedData, trustedData } = req.body;
+    const { untrustedData } = req.body;
     const buttonIndex = untrustedData?.buttonIndex;
 
     if (!buttonIndex) {
@@ -16,30 +16,36 @@ export default async function handler(req, res) {
     }
     console.log('User selected answer:', buttonIndex);
 
-    // Check if trustedData contains the expected state
-    console.log('Received trustedData:', trustedData);
-    
-    // Retrieve the game state passed from the plotFrame
-    const gameState = JSON.parse(trustedData?.stateData || '{}');
-    console.log('Parsed gameState:', gameState);
-    
-    const { correctAnswer, options } = gameState;
-
-    if (!correctAnswer || !options || options.length === 0) {
-      console.error('Invalid game state:', { correctAnswer, options });
-      return res.status(400).json({ error: 'Invalid game state' });
+    // Retrieve the answer_Value from the environment variable (previously set in plotFrame.js)
+    const correctAnswer = process.env.answer_Value;
+    if (!correctAnswer) {
+      console.error('Missing correct answer in environment variable');
+      return res.status(500).json({ error: 'Game state is invalid: no correct answer available.' });
     }
 
-    console.log('Correct answer from gameState:', correctAnswer);
-    console.log('Options presented:', options);
-
     // Check if the selected answer is correct
-    const isCorrect = options[buttonIndex - 1].trim().toLowerCase() === correctAnswer.trim().toLowerCase();
+    const isCorrect = buttonIndex === parseInt(correctAnswer);
     console.log('Is the user correct?', isCorrect);
 
-    // Generate the result text for the OG image
-    const resultText = isCorrect ? 'Correct!' : `Incorrect. The correct answer is ${correctAnswer}`;
+    // Update game tally
+    let gameTally = parseInt(process.env.gameTally || 0);
+    let gameWins = parseInt(process.env.GameWins || 0);
+    let gameLosses = parseInt(process.env.GameLoss || 0);
 
+    gameTally += 1;
+    if (isCorrect) {
+      gameWins += 1;
+    } else {
+      gameLosses += 1;
+    }
+
+    // Update environment variables
+    process.env.gameTally = gameTally.toString();
+    process.env.GameWins = gameWins.toString();
+    process.env.GameLoss = gameLosses.toString();
+
+    // Generate result text for the OG image
+    const resultText = isCorrect ? 'Correct!' : `Incorrect. The correct answer is ${correctAnswer}`;
     const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(resultText)}`;
 
     // Send the response with the next frame
@@ -51,6 +57,11 @@ export default async function handler(req, res) {
           <meta property="fc:frame:image" content="${ogImageUrl}" />
           <meta property="fc:frame:button:1" content="Next Question" />
           <meta property="fc:frame:post_url" content="${process.env.NEXT_PUBLIC_BASE_URL}/api/plotFrame" />
+          <div style="font-size: 14px; margin-top: 20px;">
+            Correct: ${gameWins} <br />
+            Incorrect: ${gameLosses} <br />
+            Total Answered: ${gameTally}
+          </div>
         </head>
       </html>
     `);
