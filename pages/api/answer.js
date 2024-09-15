@@ -2,12 +2,10 @@ export default async function handler(req, res) {
   try {
     console.log('Starting answer handler...');
 
-    // Ensure that the POST method is used
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    // Retrieve the selected answer button index from the request body
     const { untrustedData } = req.body;
     const buttonIndex = untrustedData?.buttonIndex;
     
@@ -17,7 +15,6 @@ export default async function handler(req, res) {
     }
     console.log('User selected answer:', buttonIndex);
 
-    // Retrieve the correct answer and options from environment variables
     const correctAnswer = process.env.answer_Value;
     const options = process.env.options ? JSON.parse(process.env.options) : [];
 
@@ -28,25 +25,29 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'No answer data available' });
     }
 
-    // Check if the selected answer is correct (ignoring case and trimming whitespace)
     const isCorrect = options[buttonIndex - 1].trim().toLowerCase() === correctAnswer.trim().toLowerCase();
     console.log('Is the user correct?', isCorrect);
 
-    // Update the environment variables for wins and losses
-    process.env.GameWins = parseInt(process.env.GameWins || '0') + (isCorrect ? 1 : 0);
-    process.env.GameLoss = parseInt(process.env.GameLoss || '0') + (!isCorrect ? 1 : 0);
-    process.env.gameTally = parseInt(process.env.gameTally || '0') + 1;
+    // Update game statistics
+    const gameWins = parseInt(process.env.GameWins || '0') + (isCorrect ? 1 : 0);
+    const gameLoss = parseInt(process.env.GameLoss || '0') + (!isCorrect ? 1 : 0);
+    const gameTally = parseInt(process.env.gameTally || '0') + 1;
 
-    console.log('Updated GameWins:', process.env.GameWins);
-    console.log('Updated GameLoss:', process.env.GameLoss);
-    console.log('Updated gameTally:', process.env.gameTally);
+    process.env.GameWins = gameWins.toString();
+    process.env.GameLoss = gameLoss.toString();
+    process.env.gameTally = gameTally.toString();
 
-    // Generate the image response based on correctness
-    const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(
-      isCorrect ? 'Correct!' : `Incorrect. The correct answer is ${correctAnswer}`
-    )}`;
+    console.log('Updated GameWins:', gameWins);
+    console.log('Updated GameLoss:', gameLoss);
+    console.log('Updated gameTally:', gameTally);
 
-    // Return the updated frame
+    // Generate the text for the OG image
+    const resultText = isCorrect ? 'Correct!' : `Incorrect. The correct answer is ${correctAnswer}`;
+    const statsText = `Total: ${gameTally} | Correct: ${gameWins} | Incorrect: ${gameLoss}`;
+    const ogText = `${resultText}\n\n${statsText}`;
+
+    const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(ogText)}`;
+
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(`
       <html>
