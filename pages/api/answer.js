@@ -45,6 +45,7 @@ export default async function handler(req, res) {
 
     const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(ogText)}`;
 
+    // Send the next frame
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(`
       <html>

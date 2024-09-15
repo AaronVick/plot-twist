@@ -7,12 +7,13 @@ export default async function handler(req, res) {
     console.log('Starting plotFrame handler...');
 
     // Retrieve game state from the request
-    const { untrustedData, trustedData } = req.body;
+    const { trustedData } = req.body;
     const gameState = JSON.parse(trustedData?.stateData || '{}');
     const { gameWins = 0, gameLoss = 0, gameTally = 0 } = gameState;
 
     console.log('Current game state:', { gameWins, gameLoss, gameTally });
 
+    // Fetch a random list of movies
     const searchResponse = await axios.get(omdbApiUrl);
     const movieList = searchResponse.data.Search;
 
@@ -29,10 +30,11 @@ export default async function handler(req, res) {
 
     const plot = movieData.data.Plot;
     const correctTitle = movieData.data.Title;
-    const genre = movieData.data.Genre.split(",")[0];
+    const genre = movieData.data.Genre.split(",")[0];  // Use the first genre category
 
+    // Fetch decoy titles based on genre
     let decoyResponse = await axios.get(`http://www.omdbapi.com/?apikey=99396e0b&s=${encodeURIComponent(genre)}`);
-    
+
     if (!decoyResponse.data.Search || decoyResponse.data.Search.length < 2) {
       console.warn('Not enough decoy movies found. Using default decoys.');
       decoyResponse = { data: { Search: [
@@ -56,6 +58,7 @@ export default async function handler(req, res) {
 
     const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(plot)}`;
 
+    // Create new game state with correct answer and options
     const newGameState = {
       correctAnswer: correctTitle,
       options: titles,
@@ -64,6 +67,7 @@ export default async function handler(req, res) {
       gameTally
     };
 
+    // Send the frame
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(`
       <html>
