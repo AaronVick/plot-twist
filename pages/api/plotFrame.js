@@ -1,25 +1,42 @@
 import axios from 'axios';
 
-const omdbApiUrl = `http://www.omdbapi.com/?apikey=99396e0b&s=movie`;
+const omdbApiUrl = `http://www.omdbapi.com/?apikey=99396e0b`;
+let recentlyUsedMovies = [];
 
 export default async function handler(req, res) {
   try {
     console.log('Starting plotFrame handler...');
 
     // Fetch a random list of movies
-    const searchResponse = await axios.get(omdbApiUrl);
-    const movieList = searchResponse.data.Search;
+    const randomYear = Math.floor(Math.random() * (2024 - 1950) + 1950);
+    const searchResponse = await axios.get(`${omdbApiUrl}&type=movie&y=${randomYear}&s=*`);
+    let movieList = searchResponse.data.Search;
 
     if (!movieList || movieList.length === 0) {
       console.error('Error: No movies found.');
       return res.status(500).json({ error: 'No movies found' });
     }
 
+    // Filter out recently used movies
+    movieList = movieList.filter(movie => !recentlyUsedMovies.includes(movie.imdbID));
+
+    if (movieList.length === 0) {
+      // If all movies have been used recently, reset the list
+      recentlyUsedMovies = [];
+      movieList = searchResponse.data.Search;
+    }
+
     // Select a random movie
     const randomMovie = movieList[Math.floor(Math.random() * movieList.length)];
     console.log('Random movie selected:', randomMovie);
 
-    const movieData = await axios.get(`http://www.omdbapi.com/?apikey=99396e0b&i=${randomMovie.imdbID}`);
+    // Add the selected movie to recently used list
+    recentlyUsedMovies.push(randomMovie.imdbID);
+    if (recentlyUsedMovies.length > 10) {
+      recentlyUsedMovies.shift(); // Remove the oldest movie if we have more than 10
+    }
+
+    const movieData = await axios.get(`${omdbApiUrl}&i=${randomMovie.imdbID}`);
     console.log('Movie data received:', movieData.data);
 
     const plot = movieData.data.Plot;
@@ -27,7 +44,7 @@ export default async function handler(req, res) {
     const genre = movieData.data.Genre.split(",")[0];  // Use the first genre category
 
     // Fetch decoy titles based on genre
-    let decoyResponse = await axios.get(`http://www.omdbapi.com/?apikey=99396e0b&s=${encodeURIComponent(genre)}`);
+    let decoyResponse = await axios.get(`${omdbApiUrl}&type=movie&s=${encodeURIComponent(genre)}`);
     
     if (!decoyResponse.data.Search || decoyResponse.data.Search.length < 2) {
       console.warn('Not enough decoy movies found. Using default decoys.');
@@ -38,7 +55,7 @@ export default async function handler(req, res) {
     }
 
     const decoyTitles = decoyResponse.data.Search
-      .filter(movie => movie.Title !== correctTitle)
+      .filter(movie => movie.Title !== correctTitle && !recentlyUsedMovies.includes(movie.imdbID))
       .slice(0, 1)
       .map(movie => movie.Title);
 

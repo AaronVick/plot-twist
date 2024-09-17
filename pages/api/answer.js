@@ -8,28 +8,27 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    // Retrieve the selected button index from the request body
-    const { buttonIndex } = req.body;
+    const { untrustedData, trustedData } = req.body;
 
-    if (!buttonIndex) {
-      console.error('Missing buttonIndex in the request body');
+    if (!untrustedData || !untrustedData.buttonIndex) {
+      console.error('Missing buttonIndex in untrustedData');
       return res.status(400).json({ error: 'Button index is missing' });
     }
+
+    const buttonIndex = untrustedData.buttonIndex;
     console.log('User selected answer:', buttonIndex);
 
-    // Retrieve the game state from the request headers
-    const stateData = req.headers['fc-frame-state'];
+    // Parse the state from untrustedData
+    const stateData = untrustedData.state ? JSON.parse(decodeURIComponent(untrustedData.state)) : null;
     
     if (!stateData) {
-      console.error('Missing state data in request headers');
-      return res.status(400).json({ error: 'Missing state data' });
+      console.error('Missing or invalid state data');
+      return res.status(400).json({ error: 'Missing or invalid state data' });
     }
 
-    // Retrieve the game state passed from the plotFrame
-    const gameState = JSON.parse(decodeURIComponent(stateData));
-    console.log('Parsed gameState:', gameState);
+    console.log('Parsed gameState:', stateData);
     
-    const { correctAnswer, options } = gameState;
+    const { correctAnswer, options } = stateData;
 
     if (!correctAnswer || !options || options.length === 0) {
       console.error('Invalid game state:', { correctAnswer, options });
