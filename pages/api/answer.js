@@ -1,14 +1,15 @@
 export default async function handler(req, res) {
   try {
     console.log('Starting answer handler...');
+    console.log('Request body:', JSON.stringify(req.body));
+    console.log('Request headers:', JSON.stringify(req.headers));
 
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    // Retrieve the selected button index and game state from the request body
-    const { untrustedData, trustedData } = req.body;
-    const buttonIndex = untrustedData?.buttonIndex;
+    // Retrieve the selected button index from the request body
+    const { buttonIndex } = req.body;
 
     if (!buttonIndex) {
       console.error('Missing buttonIndex in the request body');
@@ -16,14 +17,16 @@ export default async function handler(req, res) {
     }
     console.log('User selected answer:', buttonIndex);
 
-    // Check if trustedData contains the state
-    if (!trustedData?.stateData) {
-      console.error('Missing state data in trustedData');
+    // Retrieve the game state from the request headers
+    const stateData = req.headers['fc-frame-state'];
+    
+    if (!stateData) {
+      console.error('Missing state data in request headers');
       return res.status(400).json({ error: 'Missing state data' });
     }
 
     // Retrieve the game state passed from the plotFrame
-    const gameState = JSON.parse(decodeURIComponent(trustedData?.stateData));
+    const gameState = JSON.parse(decodeURIComponent(stateData));
     console.log('Parsed gameState:', gameState);
     
     const { correctAnswer, options } = gameState;
@@ -48,13 +51,18 @@ export default async function handler(req, res) {
     // Send the response with the next frame
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(`
+      <!DOCTYPE html>
       <html>
         <head>
+          <title>Plot Twist - Answer</title>
           <meta property="fc:frame" content="vNext" />
           <meta property="fc:frame:image" content="${ogImageUrl}" />
           <meta property="fc:frame:button:1" content="Next Question" />
           <meta property="fc:frame:post_url" content="${process.env.NEXT_PUBLIC_BASE_URL}/api/plotFrame" />
         </head>
+        <body>
+          <p>${resultText}</p>
+        </body>
       </html>
     `);
   } catch (error) {

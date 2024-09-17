@@ -56,17 +56,20 @@ export default async function handler(req, res) {
     // Send the frame, ensuring game state is encoded
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(`
+      <!DOCTYPE html>
       <html>
         <head>
+          <title>Plot Twist - Movie Guess</title>
           <meta property="fc:frame" content="vNext" />
           <meta property="fc:frame:image" content="${ogImageUrl}" />
           <meta property="fc:frame:button:1" content="${titles[0]}" />
-          <meta property="fc:frame:button:1:post_body" content="buttonIndex=1" /> 
           <meta property="fc:frame:button:2" content="${titles[1]}" />
-          <meta property="fc:frame:button:2:post_body" content="buttonIndex=2" />
           <meta property="fc:frame:post_url" content="${process.env.NEXT_PUBLIC_BASE_URL}/api/answer" />
           <meta property="fc:frame:state" content="${encodeURIComponent(JSON.stringify(newGameState))}" />
         </head>
+        <body>
+          <p>Guess the movie based on the plot!</p>
+        </body>
       </html>
     `);
   } catch (error) {
