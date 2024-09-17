@@ -2,7 +2,6 @@ export default async function handler(req, res) {
   try {
     console.log('Starting answer handler...');
     console.log('Request body:', JSON.stringify(req.body));
-    console.log('Request headers:', JSON.stringify(req.headers));
 
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
@@ -28,7 +27,8 @@ export default async function handler(req, res) {
 
     console.log('Parsed gameState:', stateData);
     
-    const { correctAnswer, options } = stateData;
+    const { correctAnswer, options, tally } = stateData;
+    const updatedTally = tally || { correct: 0, incorrect: 0, total: 0 };
 
     if (!correctAnswer || !options || options.length === 0) {
       console.error('Invalid game state:', { correctAnswer, options });
@@ -42,10 +42,19 @@ export default async function handler(req, res) {
     const isCorrect = options[buttonIndex - 1].trim().toLowerCase() === correctAnswer.trim().toLowerCase();
     console.log('Is the user correct?', isCorrect);
 
+    // Update the tally
+    if (isCorrect) {
+      updatedTally.correct += 1;
+    } else {
+      updatedTally.incorrect += 1;
+    }
+    updatedTally.total += 1;
+
     // Generate the result text for the OG image
     const resultText = isCorrect ? 'Correct!' : `Incorrect. The correct answer is ${correctAnswer}`;
+    const tallyText = `Correct: ${updatedTally.correct} | Incorrect: ${updatedTally.incorrect} | Total: ${updatedTally.total}`;
 
-    const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(resultText)}`;
+    const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(resultText)}&subtext=${encodeURIComponent(tallyText)}`;
 
     // Send the response with the next frame
     res.setHeader('Content-Type', 'text/html');
@@ -58,9 +67,11 @@ export default async function handler(req, res) {
           <meta property="fc:frame:image" content="${ogImageUrl}" />
           <meta property="fc:frame:button:1" content="Next Question" />
           <meta property="fc:frame:post_url" content="${process.env.NEXT_PUBLIC_BASE_URL}/api/plotFrame" />
+          <meta property="fc:frame:state" content="${encodeURIComponent(JSON.stringify({ tally: updatedTally }))}" />
         </head>
         <body>
           <p>${resultText}</p>
+          <p>${tallyText}</p>
         </body>
       </html>
     `);

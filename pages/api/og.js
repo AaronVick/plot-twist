@@ -7,12 +7,10 @@ export const config = {
 export default function handler(req) {
   const { searchParams } = new URL(req.url);
   const text = searchParams.get('text');
+  const subtext = searchParams.get('subtext');
   const color = searchParams.get('color') || 'lightblue';
 
-  console.log('Generating OG image with text:', text, 'and background color:', color);
-
-  // Split the text into result and stats
-  const [result, stats] = text.split('\n\n');
+  console.log('Generating OG image with text:', text, 'subtext:', subtext, 'and background color:', color);
 
   return new ImageResponse(
     (
@@ -26,20 +24,22 @@ export default function handler(req) {
           justifyContent: 'center',
           alignItems: 'center',
           fontFamily: 'sans-serif',
-          padding: '40px',
+          padding: '20px',
         }}
       >
         <div style={{ fontSize: 60, fontWeight: 'bold', marginBottom: '20px', textAlign: 'center' }}>
-          {result}
+          {text}
         </div>
-        <div style={{ fontSize: 30, textAlign: 'center' }}>
-          {stats}
-        </div>
+        {subtext && (
+          <div style={{ fontSize: 30, textAlign: 'center' }}>
+            {subtext}
+          </div>
+        )}
       </div>
     ),
     {
-      width: 1910,
-      height: 1000,
+      width: 1200,
+      height: 630,
     }
   );
 }

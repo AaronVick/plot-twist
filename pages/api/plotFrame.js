@@ -48,6 +48,11 @@ async function getDecoyMovies(genre, excludeTitle) {
 export default async function handler(req, res) {
   try {
     console.log('Starting plotFrame handler...');
+    console.log('Request body:', JSON.stringify(req.body));
+
+    // Extract tally from the incoming state, if it exists
+    const incomingState = req.body?.untrustedData?.state ? JSON.parse(decodeURIComponent(req.body.untrustedData.state)) : null;
+    const tally = incomingState?.tally || { correct: 0, incorrect: 0, total: 0 };
 
     let movieData;
     let attempts = 0;
@@ -89,6 +94,7 @@ export default async function handler(req, res) {
     const newGameState = {
       correctAnswer: correctTitle,
       options: titles,
+      tally: tally
     };
 
     res.setHeader('Content-Type', 'text/html');
