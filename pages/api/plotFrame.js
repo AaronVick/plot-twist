@@ -1,76 +1,96 @@
 import axios from 'axios';
 
-const omdbApiUrl = `http://www.omdbapi.com/?apikey=99396e0b`;
+const omdbApiKey = '99396e0b';
+const omdbApiUrl = `http://www.omdbapi.com/?apikey=${omdbApiKey}`;
 let recentlyUsedMovies = [];
+
+const popularMovies = [
+  'The Shawshank Redemption', 'The Godfather', 'The Dark Knight', 'Pulp Fiction',
+  'Forrest Gump', 'Inception', 'The Matrix', 'Goodfellas', 'The Silence of the Lambs',
+  'Star Wars', 'Jurassic Park', 'Titanic', 'The Lord of the Rings', 'Fight Club',
+  'Gladiator', 'The Avengers', 'The Lion King', 'Back to the Future', 'Terminator 2',
+  'Indiana Jones and the Raiders of the Lost Ark'
+];
+
+async function getRandomMovie() {
+  try {
+    const randomTitle = popularMovies[Math.floor(Math.random() * popularMovies.length)];
+    const searchResponse = await axios.get(`${omdbApiUrl}&t=${encodeURIComponent(randomTitle)}`);
+    
+    if (searchResponse.data.Response === 'True') {
+      return searchResponse.data;
+    } else {
+      throw new Error('Movie not found');
+    }
+  } catch (error) {
+    console.error('Error fetching random movie:', error.message);
+    throw error;
+  }
+}
+
+async function getDecoyMovies(genre, excludeTitle) {
+  try {
+    const decoyResponse = await axios.get(`${omdbApiUrl}&type=movie&s=${encodeURIComponent(genre)}`);
+    
+    if (decoyResponse.data.Response === 'True' && decoyResponse.data.Search) {
+      return decoyResponse.data.Search
+        .filter(movie => movie.Title !== excludeTitle)
+        .map(movie => movie.Title);
+    } else {
+      return popularMovies.filter(title => title !== excludeTitle);
+    }
+  } catch (error) {
+    console.error('Error fetching decoy movies:', error.message);
+    return popularMovies.filter(title => title !== excludeTitle);
+  }
+}
 
 export default async function handler(req, res) {
   try {
     console.log('Starting plotFrame handler...');
 
-    // Fetch a random list of movies
-    const randomYear = Math.floor(Math.random() * (2024 - 1950) + 1950);
-    const searchResponse = await axios.get(`${omdbApiUrl}&type=movie&y=${randomYear}&s=*`);
-    let movieList = searchResponse.data.Search;
+    let movieData;
+    let attempts = 0;
+    const maxAttempts = 3;
 
-    if (!movieList || movieList.length === 0) {
-      console.error('Error: No movies found.');
-      return res.status(500).json({ error: 'No movies found' });
+    while (attempts < maxAttempts) {
+      try {
+        movieData = await getRandomMovie();
+        if (!recentlyUsedMovies.includes(movieData.imdbID)) {
+          break;
+        }
+      } catch (error) {
+        console.error(`Attempt ${attempts + 1} failed:`, error.message);
+      }
+      attempts++;
     }
 
-    // Filter out recently used movies
-    movieList = movieList.filter(movie => !recentlyUsedMovies.includes(movie.imdbID));
-
-    if (movieList.length === 0) {
-      // If all movies have been used recently, reset the list
-      recentlyUsedMovies = [];
-      movieList = searchResponse.data.Search;
+    if (!movieData) {
+      throw new Error('Failed to fetch a valid movie after multiple attempts');
     }
 
-    // Select a random movie
-    const randomMovie = movieList[Math.floor(Math.random() * movieList.length)];
-    console.log('Random movie selected:', randomMovie);
+    console.log('Movie data received:', movieData);
 
-    // Add the selected movie to recently used list
-    recentlyUsedMovies.push(randomMovie.imdbID);
+    recentlyUsedMovies.push(movieData.imdbID);
     if (recentlyUsedMovies.length > 10) {
-      recentlyUsedMovies.shift(); // Remove the oldest movie if we have more than 10
+      recentlyUsedMovies.shift();
     }
 
-    const movieData = await axios.get(`${omdbApiUrl}&i=${randomMovie.imdbID}`);
-    console.log('Movie data received:', movieData.data);
+    const plot = movieData.Plot;
+    const correctTitle = movieData.Title;
+    const genre = movieData.Genre.split(",")[0];
 
-    const plot = movieData.data.Plot;
-    const correctTitle = movieData.data.Title;
-    const genre = movieData.data.Genre.split(",")[0];  // Use the first genre category
-
-    // Fetch decoy titles based on genre
-    let decoyResponse = await axios.get(`${omdbApiUrl}&type=movie&s=${encodeURIComponent(genre)}`);
-    
-    if (!decoyResponse.data.Search || decoyResponse.data.Search.length < 2) {
-      console.warn('Not enough decoy movies found. Using default decoys.');
-      decoyResponse = { data: { Search: [
-        { Title: 'The Matrix' },
-        { Title: 'Inception' }
-      ] }};
-    }
-
-    const decoyTitles = decoyResponse.data.Search
-      .filter(movie => movie.Title !== correctTitle && !recentlyUsedMovies.includes(movie.imdbID))
-      .slice(0, 1)
-      .map(movie => movie.Title);
-
-    const titles = [correctTitle, ...decoyTitles].sort(() => Math.random() - 0.5);
+    const decoyTitles = await getDecoyMovies(genre, correctTitle);
+    const titles = [correctTitle, decoyTitles[0]].sort(() => Math.random() - 0.5);
     console.log('Final movie titles presented:', titles);
 
     const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(plot)}`;
 
-    // Create the game state
     const newGameState = {
       correctAnswer: correctTitle,
       options: titles,
     };
 
-    // Send the frame, ensuring game state is encoded
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(`
       <!DOCTYPE html>
