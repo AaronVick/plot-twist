@@ -79,7 +79,17 @@ export default async function handler(req, res) {
 
     // Get dynamic decoy titles based on the same genre
     const decoyTitles = await getDecoyMovies(genre, correctTitle);
-    const titles = [correctTitle, ...decoyTitles].sort(() => Math.random() - 0.5).slice(0, 2); // Randomize order and take 2 options
+    
+    // Ensure there is always a decoy and correct title in the options
+    const titles = [correctTitle, ...(decoyTitles.length > 0 ? [decoyTitles[0]] : [])];
+
+    // If we only have one option, make sure the second option is a repeat of the correct one
+    if (titles.length < 2) {
+      titles.push(correctTitle); // Use the correct title again if no decoy available
+    }
+
+    // Randomize the order of the titles
+    const shuffledTitles = titles.sort(() => Math.random() - 0.5);
 
     // Update the tally and pass it along in the state
     const incomingState = req.body?.untrustedData?.state ? JSON.parse(decodeURIComponent(req.body.untrustedData.state)) : null;
@@ -89,7 +99,7 @@ export default async function handler(req, res) {
     
     const newGameState = {
       correctAnswer: correctTitle,
-      options: titles,
+      options: shuffledTitles,
       tally: tally // Pass the updated tally forward
     };
 
@@ -101,8 +111,8 @@ export default async function handler(req, res) {
           <title>Plot Twist - Movie Guess</title>
           <meta property="fc:frame" content="vNext" />
           <meta property="fc:frame:image" content="${ogImageUrl}" />
-          <meta property="fc:frame:button:1" content="${titles[0]}" />
-          <meta property="fc:frame:button:2" content="${titles[1]}" />
+          <meta property="fc:frame:button:1" content="${shuffledTitles[0]}" />
+          <meta property="fc:frame:button:2" content="${shuffledTitles[1]}" />
           <meta property="fc:frame:post_url" content="${process.env.NEXT_PUBLIC_BASE_URL}/api/answer" />
           <meta property="fc:frame:state" content="${encodeURIComponent(JSON.stringify(newGameState))}" />
         </head>
