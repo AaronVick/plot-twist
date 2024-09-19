@@ -12,11 +12,19 @@ client.on("error", function(err) {
 
 await client.connect();
 
+const omdbApiKey = '99396e0b'; // Replace with your OMDb API key
+const omdbApiUrl = `http://www.omdbapi.com/?apikey=${omdbApiKey}`;
+
+// Fetch a random movie not in the excludeMovies array
 async function getRandomMovie(excludeMovies) {
   try {
-    const availableMovies = popularMovies.filter(movie => !excludeMovies.includes(movie));
-    const randomTitle = availableMovies[Math.floor(Math.random() * availableMovies.length)];
-    const searchResponse = await axios.get(`${omdbApiUrl}&t=${encodeURIComponent(randomTitle)}`);
+    const randomSearch = await axios.get(`${omdbApiUrl}&s=movie&page=${Math.floor(Math.random() * 100) + 1}`);
+    const movies = randomSearch.data.Search;
+
+    const availableMovies = movies.filter(movie => !excludeMovies.includes(movie.imdbID));
+    const randomMovie = availableMovies[Math.floor(Math.random() * availableMovies.length)];
+
+    const searchResponse = await axios.get(`${omdbApiUrl}&i=${encodeURIComponent(randomMovie.imdbID)}`);
     
     if (searchResponse.data.Response === 'True') {
       return searchResponse.data;
@@ -29,20 +37,21 @@ async function getRandomMovie(excludeMovies) {
   }
 }
 
+// Fetch decoy movies by searching for the same genre but different titles
 async function getDecoyMovies(genre, excludeTitle) {
   try {
-    const decoyResponse = await axios.get(`${omdbApiUrl}&type=movie&s=${encodeURIComponent(genre)}`);
+    const decoyResponse = await axios.get(`${omdbApiUrl}&s=${encodeURIComponent(genre)}&type=movie`);
     
     if (decoyResponse.data.Response === 'True' && decoyResponse.data.Search) {
       return decoyResponse.data.Search
         .filter(movie => movie.Title !== excludeTitle)
         .map(movie => movie.Title);
     } else {
-      return popularMovies.filter(title => title !== excludeTitle);
+      return [];
     }
   } catch (error) {
     console.error('Error fetching decoy movies:', error.message);
-    return popularMovies.filter(title => title !== excludeTitle);
+    return [];
   }
 }
 
@@ -66,9 +75,11 @@ export default async function handler(req, res) {
 
     const plot = movieData.Plot;
     const correctTitle = movieData.Title;
-    const genre = movieData.Genre.split(",")[0];
+    const genre = movieData.Genre.split(",")[0]; // Use the first genre for fetching decoys
+
+    // Get dynamic decoy titles based on the same genre
     const decoyTitles = await getDecoyMovies(genre, correctTitle);
-    const titles = [correctTitle, decoyTitles[0]].sort(() => Math.random() - 0.5);
+    const titles = [correctTitle, ...decoyTitles].sort(() => Math.random() - 0.5).slice(0, 2); // Randomize order and take 2 options
 
     // Update the tally and pass it along in the state
     const incomingState = req.body?.untrustedData?.state ? JSON.parse(decodeURIComponent(req.body.untrustedData.state)) : null;
