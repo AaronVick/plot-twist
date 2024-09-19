@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { createClient } from "redis";
 
 const omdbApiKey = '99396e0b';
 const omdbApiUrl = `http://www.omdbapi.com/?apikey=${omdbApiKey}`;
@@ -6,6 +7,17 @@ const popularMovies = [
   'The Shawshank Redemption', 'The Godfather', 'The Dark Knight', 'Pulp Fiction',
   // ... other movies
 ];
+
+// Initialize Redis client
+const client = createClient({
+  url: `rediss://default:${process.env.RedisPassword}@${process.env.RedisEndpoint}:6379`
+});
+
+client.on("error", function(err) {
+  console.error('Redis error:', err);
+});
+
+await client.connect();
 
 async function getRandomMovie(excludeMovies) {
   try {
@@ -24,22 +36,28 @@ async function getRandomMovie(excludeMovies) {
   }
 }
 
+// Define getDecoyMovies here
+async function getDecoyMovies(genre, excludeTitle) {
+  try {
+    const decoyResponse = await axios.get(`${omdbApiUrl}&type=movie&s=${encodeURIComponent(genre)}`);
+    
+    if (decoyResponse.data.Response === 'True' && decoyResponse.data.Search) {
+      return decoyResponse.data.Search
+        .filter(movie => movie.Title !== excludeTitle)
+        .map(movie => movie.Title);
+    } else {
+      return popularMovies.filter(title => title !== excludeTitle);
+    }
+  } catch (error) {
+    console.error('Error fetching decoy movies:', error.message);
+    return popularMovies.filter(title => title !== excludeTitle);
+  }
+}
+
 export default async function handler(req, res) {
   try {
     console.log('Starting plotFrame handler...');
     
-    // Dynamically import Redis to avoid client-side bundling issues
-    const { createClient } = await import("redis");
-    const client = createClient({
-      url: `rediss://default:${process.env.RedisPassword}@${process.env.RedisEndpoint}:6379`
-    });
-
-    client.on("error", function(err) {
-      console.error('Redis error:', err);
-    });
-
-    await client.connect();
-
     const fid = req.body?.untrustedData?.fid; // Extracting the untrusted FID
     const sessionId = `session_${fid}`;
     
