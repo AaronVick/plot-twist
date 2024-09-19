@@ -1,20 +1,28 @@
 import axios from 'axios';
+import { createClient } from "redis";
 
 const omdbApiKey = '99396e0b';
 const omdbApiUrl = `http://www.omdbapi.com/?apikey=${omdbApiKey}`;
-let recentlyUsedMovies = [];
-
 const popularMovies = [
   'The Shawshank Redemption', 'The Godfather', 'The Dark Knight', 'Pulp Fiction',
-  'Forrest Gump', 'Inception', 'The Matrix', 'Goodfellas', 'The Silence of the Lambs',
-  'Star Wars', 'Jurassic Park', 'Titanic', 'The Lord of the Rings', 'Fight Club',
-  'Gladiator', 'The Avengers', 'The Lion King', 'Back to the Future', 'Terminator 2',
-  'Indiana Jones and the Raiders of the Lost Ark'
+  // ... other movies
 ];
 
-async function getRandomMovie() {
+// Initialize Redis client
+const client = createClient({
+  url: `rediss://default:${process.env.RedisPassword}@${process.env.RedisEndpoint}:6379`
+});
+
+client.on("error", function(err) {
+  console.error('Redis error:', err);
+});
+
+await client.connect();
+
+async function getRandomMovie(excludeMovies) {
   try {
-    const randomTitle = popularMovies[Math.floor(Math.random() * popularMovies.length)];
+    const availableMovies = popularMovies.filter(movie => !excludeMovies.includes(movie));
+    const randomTitle = availableMovies[Math.floor(Math.random() * availableMovies.length)];
     const searchResponse = await axios.get(`${omdbApiUrl}&t=${encodeURIComponent(randomTitle)}`);
     
     if (searchResponse.data.Response === 'True') {
@@ -28,73 +36,35 @@ async function getRandomMovie() {
   }
 }
 
-async function getDecoyMovies(genre, excludeTitle) {
-  try {
-    const decoyResponse = await axios.get(`${omdbApiUrl}&type=movie&s=${encodeURIComponent(genre)}`);
-    
-    if (decoyResponse.data.Response === 'True' && decoyResponse.data.Search) {
-      return decoyResponse.data.Search
-        .filter(movie => movie.Title !== excludeTitle)
-        .map(movie => movie.Title);
-    } else {
-      return popularMovies.filter(title => title !== excludeTitle);
-    }
-  } catch (error) {
-    console.error('Error fetching decoy movies:', error.message);
-    return popularMovies.filter(title => title !== excludeTitle);
-  }
-}
-
 export default async function handler(req, res) {
   try {
     console.log('Starting plotFrame handler...');
-    console.log('Request body:', JSON.stringify(req.body));
+    const fid = req.body?.untrustedData?.fid; // Extracting the untrusted FID
+    const sessionId = `session_${fid}`;
+    
+    // Retrieve the movies already used in this session from Redis
+    let usedMovies = await client.get(sessionId);
+    usedMovies = usedMovies ? JSON.parse(usedMovies) : [];
 
-    // Extract tally from the incoming state, if it exists
-    const incomingState = req.body?.untrustedData?.state ? JSON.parse(decodeURIComponent(req.body.untrustedData.state)) : null;
-    const tally = incomingState?.tally || { correct: 0, incorrect: 0, total: 0 };
+    // Get a random movie, ensuring it hasn't been used in the session
+    const movieData = await getRandomMovie(usedMovies);
+    usedMovies.push(movieData.imdbID);
 
-    let movieData;
-    let attempts = 0;
-    const maxAttempts = 3;
-
-    while (attempts < maxAttempts) {
-      try {
-        movieData = await getRandomMovie();
-        if (!recentlyUsedMovies.includes(movieData.imdbID)) {
-          break;
-        }
-      } catch (error) {
-        console.error(`Attempt ${attempts + 1} failed:`, error.message);
-      }
-      attempts++;
-    }
-
-    if (!movieData) {
-      throw new Error('Failed to fetch a valid movie after multiple attempts');
-    }
-
-    console.log('Movie data received:', movieData);
-
-    recentlyUsedMovies.push(movieData.imdbID);
-    if (recentlyUsedMovies.length > 10) {
-      recentlyUsedMovies.shift();
-    }
+    // Save the updated list of used movies back to Redis
+    await client.set(sessionId, JSON.stringify(usedMovies), { EX: 3600 }); // Set expiration to 1 hour
 
     const plot = movieData.Plot;
     const correctTitle = movieData.Title;
     const genre = movieData.Genre.split(",")[0];
-
     const decoyTitles = await getDecoyMovies(genre, correctTitle);
     const titles = [correctTitle, decoyTitles[0]].sort(() => Math.random() - 0.5);
-    console.log('Final movie titles presented:', titles);
 
     const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(plot)}`;
-
+    
     const newGameState = {
       correctAnswer: correctTitle,
       options: titles,
-      tally: tally
+      tally: req.body?.untrustedData?.state?.tally || { correct: 0, incorrect: 0, total: 0 }
     };
 
     res.setHeader('Content-Type', 'text/html');
