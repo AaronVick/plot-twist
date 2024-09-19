@@ -1,24 +1,25 @@
+import { createClient } from "redis";
+
+// Initialize Redis client
+const client = createClient({
+  url: `rediss://default:${process.env.RedisPassword}@${process.env.RedisEndpoint}:6379`
+});
+
+client.on("error", function(err) {
+  console.error('Redis error:', err);
+});
+
+await client.connect();
+
 export default async function handler(req, res) {
   try {
     console.log('Starting answer handler...');
-    const { untrustedData, trustedData } = req.body;
+    const { untrustedData } = req.body;
 
     if (!untrustedData || !untrustedData.buttonIndex) {
       console.error('Missing buttonIndex in untrustedData');
       return res.status(400).json({ error: 'Button index is missing' });
     }
-
-    // Dynamically import Redis to avoid client-side bundling issues
-    const { createClient } = await import("redis");
-    const client = createClient({
-      url: `rediss://default:${process.env.RedisPassword}@${process.env.RedisEndpoint}:6379`
-    });
-
-    client.on("error", function(err) {
-      console.error('Redis error:', err);
-    });
-
-    await client.connect();
 
     const fid = untrustedData.fid; // Extracting FID
     const sessionId = `session_${fid}`;
@@ -32,6 +33,7 @@ export default async function handler(req, res) {
     const buttonIndex = untrustedData.buttonIndex;
     const isCorrect = options[buttonIndex - 1].trim().toLowerCase() === correctAnswer.trim().toLowerCase();
 
+    // Update the tally
     if (isCorrect) {
       updatedTally.correct += 1;
     } else {
@@ -44,7 +46,7 @@ export default async function handler(req, res) {
 
     const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(resultText)}&subtext=${encodeURIComponent(tallyText)}`;
 
-    // Send response
+    // Send the updated tally and image response
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(`
       <!DOCTYPE html>

@@ -1,13 +1,6 @@
 import axios from 'axios';
 import { createClient } from "redis";
 
-const omdbApiKey = '99396e0b';
-const omdbApiUrl = `http://www.omdbapi.com/?apikey=${omdbApiKey}`;
-const popularMovies = [
-  'The Shawshank Redemption', 'The Godfather', 'The Dark Knight', 'Pulp Fiction',
-  // ... other movies
-];
-
 // Initialize Redis client
 const client = createClient({
   url: `rediss://default:${process.env.RedisPassword}@${process.env.RedisEndpoint}:6379`
@@ -36,7 +29,6 @@ async function getRandomMovie(excludeMovies) {
   }
 }
 
-// Define getDecoyMovies here
 async function getDecoyMovies(genre, excludeTitle) {
   try {
     const decoyResponse = await axios.get(`${omdbApiUrl}&type=movie&s=${encodeURIComponent(genre)}`);
@@ -78,12 +70,16 @@ export default async function handler(req, res) {
     const decoyTitles = await getDecoyMovies(genre, correctTitle);
     const titles = [correctTitle, decoyTitles[0]].sort(() => Math.random() - 0.5);
 
+    // Update the tally and pass it along in the state
+    const incomingState = req.body?.untrustedData?.state ? JSON.parse(decodeURIComponent(req.body.untrustedData.state)) : null;
+    const tally = incomingState?.tally || { correct: 0, incorrect: 0, total: 0 };
+
     const ogImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/og?text=${encodeURIComponent(plot)}`;
     
     const newGameState = {
       correctAnswer: correctTitle,
       options: titles,
-      tally: req.body?.untrustedData?.state?.tally || { correct: 0, incorrect: 0, total: 0 }
+      tally: tally // Pass the updated tally forward
     };
 
     res.setHeader('Content-Type', 'text/html');
