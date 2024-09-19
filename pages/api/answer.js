@@ -1,16 +1,3 @@
-import { createClient } from "redis";
-
-// Initialize Redis client
-const client = createClient({
-  url: `rediss://default:${process.env.RedisPassword}@${process.env.RedisEndpoint}:6379`
-});
-
-client.on("error", function(err) {
-  console.error('Redis error:', err);
-});
-
-await client.connect();
-
 export default async function handler(req, res) {
   try {
     console.log('Starting answer handler...');
@@ -20,6 +7,18 @@ export default async function handler(req, res) {
       console.error('Missing buttonIndex in untrustedData');
       return res.status(400).json({ error: 'Button index is missing' });
     }
+
+    // Dynamically import Redis to avoid client-side bundling issues
+    const { createClient } = await import("redis");
+    const client = createClient({
+      url: `rediss://default:${process.env.RedisPassword}@${process.env.RedisEndpoint}:6379`
+    });
+
+    client.on("error", function(err) {
+      console.error('Redis error:', err);
+    });
+
+    await client.connect();
 
     const fid = untrustedData.fid; // Extracting FID
     const sessionId = `session_${fid}`;

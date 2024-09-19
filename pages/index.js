@@ -1,15 +1,4 @@
 import Head from 'next/head';
-import { createClient } from "redis";
-
-// Initialize Redis client
-const client = createClient({
-  url: `rediss://default:${process.env.RedisPassword}@${process.env.RedisEndpoint}:6379`
-});
-
-client.on("error", function(err) {
-  throw err;
-});
-await client.connect();
 
 export default function Home() {
   console.log('Rendering home page...');
